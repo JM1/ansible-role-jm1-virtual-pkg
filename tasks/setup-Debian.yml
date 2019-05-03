@@ -1,0 +1,159 @@
+---
+# Variable is named _apt_packages instead of apt_packages (leading underscore)
+# because we do not want to override socalled variables in parent tasks
+- set_fact:
+    _apt_packages: "{{ ___apt_packages|list }}"
+  when: _apt_packages|default(None) == None
+
+- set_fact:
+    package_name: "{{ __package_name }}"
+  when: package_name|default(None) == None
+
+- set_fact:
+    package_version: "{{ __package_version }}"
+  when: package_version|default(None) == None
+
+- set_fact:
+    package_architecture: "{{ __package_architecture }}"
+  when: package_architecture|default(None) == None
+
+- set_fact:
+    package_maintainer: "{{ __package_maintainer }}"
+  when: package_maintainer|default(None) == None
+
+- set_fact:
+    package_depends: "{{ __package_depends|list }}"
+  when: package_depends|default(None) == None
+
+- set_fact:
+    package_pre_depends: "{{ __package_pre_depends|list }}"
+  when: package_pre_depends|default(None) == None
+
+- set_fact:
+    package_recommends: "{{ __package_recommends|list }}"
+  when: package_recommends|default(None) == None
+
+- set_fact:
+    package_suggests: "{{ __package_suggests|list }}"
+  when: package_suggests|default(None) == None
+
+- set_fact:
+    package_enhances: "{{ __package_enhances|list }}"
+  when: package_enhances|default(None) == None
+
+- set_fact:
+    package_breaks: "{{ __package_breaks|list }}"
+  when: package_breaks|default(None) == None
+
+- set_fact:
+    package_conflicts: "{{ __package_conflicts|list }}"
+  when: package_conflicts|default(None) == None
+
+- set_fact:
+    package_description_title: "{{ __package_description_title }}"
+  when: package_description_title|default(None) == None
+
+- set_fact:
+    package_description: "{{ __package_description|list }}"
+  when: package_description|default(None) == None
+
+- apt:
+    update_cache: yes
+
+- apt:
+    name: "{{ _apt_packages }}"
+
+- name: Find package names matching regex patterns
+  shell: |
+    set -e
+    pkgs=""
+    for pkg in {{ lookup('vars', 'package_' + item)|map('quote')|join(' ') }}; do
+        # decide between just-a-package-name vs. regex pattern by searching for disallowed characters
+        # Ref.: https://lists.debian.org/debian-dpkg/2006/05/msg00087.html
+        if [ -z "$(echo $pkg | grep -e '^[0-9a-zA-Z\.\+\_\-]*$' | grep -v '\.+')" ]; then
+            # regex pattern
+            pkgs="$pkgs\n$(apt-cache search --names-only $pkg | awk '{ print $1 }')"
+        else
+            # just a package name
+            pkgs="$pkgs\n$pkg"
+        fi
+    done
+    echo "$pkgs" | sed '/^$/d'
+  register: package_lists
+  loop:
+  - depends
+  - pre_depends
+  - recommends
+  - suggests
+  - enhances
+  - breaks
+  - conflicts
+
+- set_fact:
+    package_depends_list: "{{ package_lists.results.0.stdout_lines }}"
+    package_pre_depends_list: "{{ package_lists.results.1.stdout_lines }}"
+    package_recommends_list: "{{ package_lists.results.2.stdout_lines }}"
+    package_suggests_list: "{{ package_lists.results.3.stdout_lines }}"
+    package_enhances_list: "{{ package_lists.results.4.stdout_lines }}"
+    package_breaks_list: "{{ package_lists.results.5.stdout_lines }}"
+    package_conflicts_list: "{{ package_lists.results.6.stdout_lines }}"
+
+- block:
+    - tempfile:
+        state:  directory
+      register: package_dir
+
+    - tempfile:
+        state:  file
+        suffix: ".ctl"
+        path: "{{ package_dir.path }}"
+      register: package_ctl
+
+    - template:
+        src: "{{ distribution_codename }}/package.ctl.j2"
+        dest: "{{ package_ctl.path }}"
+
+    - shell: equivs-build "{{ package_ctl.path }}"
+      args:
+        chdir: "{{ package_dir.path }}"
+
+    - apt:
+        deb: "{{ package_dir.path }}/{{ package_name }}_{{ package_version }}_{{ package_architecture }}.deb"
+
+  always:
+    - file:
+        path: "{{ package_ctl.get('path') if package_ctl is defined and 'path' in package_ctl else None }}"
+        state: absent
+      when: package_ctl is defined and 'path' in package_ctl
+    
+    - file:
+        path: "{{ package_dir.get('path') if package_dir is defined and 'path' in package_dir else None }}"
+        state: absent
+      when: package_dir is defined and 'path' in package_dir
+
+  when: package_name|default(None) != None
+  # package_name might be None if this role has been included
+  # as a dependency in meta/main.yml of another task
+
+- set_fact:
+    _apt_packages: !!null
+    package_name: !!null
+    package_version: !!null
+    package_architecture: !!null
+    package_maintainer: !!null
+    package_depends: !!null
+    package_pre_depends: !!null
+    package_recommends: !!null
+    package_suggests: !!null
+    package_enhances: !!null
+    package_breaks: !!null
+    package_conflicts: !!null
+    package_description_title: !!null
+    package_description: !!null
+    package_depends_list: !!null
+    package_pre_depends_list: !!null
+    package_recommends_list: !!null
+    package_suggests_list: !!null
+    package_enhances_list: !!null
+    package_breaks_list: !!null
+    package_conflicts_list: !!null

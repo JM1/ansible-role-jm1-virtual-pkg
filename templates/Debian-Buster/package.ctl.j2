@@ -1,0 +1,18 @@
+Section: misc
+Priority: optional
+Standards-Version:  4.3.0
+Package: {{ package_name }}
+Version: {{ package_version }}
+Architecture: {{ package_architecture }}
+Maintainer: {{ package_maintainer }}
+
+Depends: {{ package_depends_list|join(', ') }}
+Pre-Depends: {{ package_pre_depends_list|join(', ') }}
+Recommends: {{ package_recommends_list|join(', ') }}
+Suggests: {{ package_suggests_list|join(', ') }}
+Enhances: {{ package_enhances_list|join(', ') }}
+Breaks: {{ package_breaks_list|join(', ') }}
+Conflicts: {{ package_conflicts_list|join(', ') }}
+
+Description: {{ package_description_title }}
+ {{ package_description }}
