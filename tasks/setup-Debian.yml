@@ -54,7 +54,7 @@
   when: package_description_title|default(None) == None
 
 - set_fact:
-    package_description: "{{ __package_description|list }}"
+    package_description: "{{ __package_description }}"
   when: package_description|default(None) == None
 
 - apt:
