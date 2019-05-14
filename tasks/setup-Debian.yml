@@ -117,8 +117,11 @@
       args:
         chdir: "{{ package_dir.path }}"
 
-    - apt:
-        deb: "{{ package_dir.path }}/{{ package_name }}_{{ package_version }}_{{ package_architecture }}.deb"
+    - shell: |
+        apt-get install -y \
+          "{{ package_dir.path }}/{{ package_name }}_{{ package_version }}_{{ package_architecture }}.deb"
+      environment:
+        DEBIAN_FRONTEND: noninteractive
 
   always:
     - file:
