@@ -99,11 +99,16 @@
     package_breaks_list: "{{ package_lists.results.5.stdout_lines }}"
     package_conflicts_list: "{{ package_lists.results.6.stdout_lines }}"
 
-- package_facts:
+- shell: dpkg --status '{{ package_name }}'
+  register: dpkg_result
+  failed_when: false
+  changed_when: false
 
 - set_fact:
-    package_is_already_installed: ansible_facts.packages[package_name] is defined and
-        package_version in ansible_facts.packages[package_name]|json_query('[*].version')
+    package_is_already_installed:
+      '{{"Status: install ok installed" in dpkg_result.stdout_lines and
+         ("Version: " ~ package_version) in dpkg_result.stdout_lines}}'
+    dpkg_result: !!null
 
 - block:
     - tempfile:
