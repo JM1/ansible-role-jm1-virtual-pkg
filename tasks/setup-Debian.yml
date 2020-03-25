@@ -57,48 +57,6 @@
     package_description: "{{ __package_description }}"
   when: package_description|default(None) == None
 
-- apt:
-    update_cache: yes
-
-- apt:
-    name: "{{ _apt_packages }}"
-
-- name: Find package names matching regex patterns
-  shell: |
-    set -e
-    pkgs=""
-    for pkg in {{ lookup('vars', 'package_' + item)|map('quote')|join(' ') }}; do
-        # decide between just-a-package-name vs. regex pattern by searching for disallowed characters
-        # Ref.: https://lists.debian.org/debian-dpkg/2006/05/msg00087.html
-        if [ -z "$(echo $pkg | grep -e '^[0-9a-zA-Z\.\+\_\-]*$' | grep -v '\.+')" ]; then
-            # regex pattern
-            pkgs="$pkgs\n$(apt-cache search --names-only $pkg | awk '{ print $1 }')"
-        else
-            # just a package name
-            pkgs="$pkgs\n$pkg"
-        fi
-    done
-    echo "$pkgs" | sed '/^$/d'
-  register: package_lists
-  loop:
-  - depends
-  - pre_depends
-  - recommends
-  - suggests
-  - enhances
-  - breaks
-  - conflicts
-  changed_when: false
-
-- set_fact:
-    package_depends_list: "{{ package_lists.results.0.stdout_lines }}"
-    package_pre_depends_list: "{{ package_lists.results.1.stdout_lines }}"
-    package_recommends_list: "{{ package_lists.results.2.stdout_lines }}"
-    package_suggests_list: "{{ package_lists.results.3.stdout_lines }}"
-    package_enhances_list: "{{ package_lists.results.4.stdout_lines }}"
-    package_breaks_list: "{{ package_lists.results.5.stdout_lines }}"
-    package_conflicts_list: "{{ package_lists.results.6.stdout_lines }}"
-
 - shell: dpkg --status '{{ package_name }}'
   register: dpkg_result
   failed_when: false
@@ -110,45 +68,89 @@
          ("Version: " ~ package_version) in dpkg_result.stdout_lines}}'
     dpkg_result: !!null
 
-- block:
-    - tempfile:
-        state:  directory
-      register: package_dir
+- when: not package_is_already_installed
+  block:
+  - apt:
+      update_cache: yes
 
-    - tempfile:
-        state:  file
-        suffix: ".ctl"
-        path: "{{ package_dir.path }}"
-      register: package_ctl
+  - apt:
+      name: "{{ _apt_packages }}"
 
-    - template:
-        src: "{{ distribution_codename }}/package.ctl.j2"
-        dest: "{{ package_ctl.path }}"
+  - name: Find package names matching regex patterns
+    shell: |
+      set -e
+      pkgs=""
+      for pkg in {{ lookup('vars', 'package_' + item)|map('quote')|join(' ') }}; do
+          # decide between just-a-package-name vs. regex pattern by searching for disallowed characters
+          # Ref.: https://lists.debian.org/debian-dpkg/2006/05/msg00087.html
+          if [ -z "$(echo $pkg | grep -e '^[0-9a-zA-Z\.\+\_\-]*$' | grep -v '\.+')" ]; then
+              # regex pattern
+              pkgs="$pkgs\n$(apt-cache search --names-only $pkg | awk '{ print $1 }')"
+          else
+              # just a package name
+              pkgs="$pkgs\n$pkg"
+          fi
+      done
+      echo "$pkgs" | sed '/^$/d'
+    register: package_lists
+    loop:
+    - depends
+    - pre_depends
+    - recommends
+    - suggests
+    - enhances
+    - breaks
+    - conflicts
+    changed_when: false
 
-    - shell: equivs-build "{{ package_ctl.path }}"
-      args:
-        chdir: "{{ package_dir.path }}"
+  - set_fact:
+      package_depends_list: "{{ package_lists.results.0.stdout_lines }}"
+      package_pre_depends_list: "{{ package_lists.results.1.stdout_lines }}"
+      package_recommends_list: "{{ package_lists.results.2.stdout_lines }}"
+      package_suggests_list: "{{ package_lists.results.3.stdout_lines }}"
+      package_enhances_list: "{{ package_lists.results.4.stdout_lines }}"
+      package_breaks_list: "{{ package_lists.results.5.stdout_lines }}"
+      package_conflicts_list: "{{ package_lists.results.6.stdout_lines }}"
 
-    - shell: |
-        apt-get install -y \
-          "{{ package_dir.path }}/{{ package_name }}_{{ package_version }}_{{ package_architecture }}.deb"
-      environment:
-        DEBIAN_FRONTEND: noninteractive
+  - block:
+      - tempfile:
+          state:  directory
+        register: package_dir
 
-  always:
-    - file:
-        path: "{{ package_ctl.get('path') if package_ctl is defined and 'path' in package_ctl else None }}"
-        state: absent
-      when: package_ctl is defined and 'path' in package_ctl
-    
-    - file:
-        path: "{{ package_dir.get('path') if package_dir is defined and 'path' in package_dir else None }}"
-        state: absent
-      when: package_dir is defined and 'path' in package_dir
+      - tempfile:
+          state:  file
+          suffix: ".ctl"
+          path: "{{ package_dir.path }}"
+        register: package_ctl
 
-  when: not package_is_already_installed and (package_name|default(None) != None)
-  # package_name might be None if this role has been included
-  # as a dependency in meta/main.yml of another task
+      - template:
+          src: "{{ distribution_codename }}/package.ctl.j2"
+          dest: "{{ package_ctl.path }}"
+
+      - shell: equivs-build "{{ package_ctl.path }}"
+        args:
+          chdir: "{{ package_dir.path }}"
+
+      - shell: |
+          apt-get install -y \
+            "{{ package_dir.path }}/{{ package_name }}_{{ package_version }}_{{ package_architecture }}.deb"
+        environment:
+          DEBIAN_FRONTEND: noninteractive
+
+    always:
+      - file:
+          path: "{{ package_ctl.get('path') if package_ctl is defined and 'path' in package_ctl else None }}"
+          state: absent
+        when: package_ctl is defined and 'path' in package_ctl
+
+      - file:
+          path: "{{ package_dir.get('path') if package_dir is defined and 'path' in package_dir else None }}"
+          state: absent
+        when: package_dir is defined and 'path' in package_dir
+
+    when: (package_name|default(None) != None)
+    # package_name might be None if this role has been included
+    # as a dependency in meta/main.yml of another task
 
 - set_fact:
     _apt_packages: !!null
