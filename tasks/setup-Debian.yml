@@ -57,6 +57,11 @@
     package_description: "{{ __package_description }}"
   when: package_description|default(None) == None
 
+- name: Fail if required vars are not set
+  fail:
+  when: >
+    package_name == None or package_name|length == 0
+
 - shell: dpkg --status '{{ package_name }}'
   register: dpkg_result
   failed_when: false
