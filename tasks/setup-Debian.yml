@@ -64,7 +64,11 @@
 
 - shell: dpkg --status '{{ package_name }}'
   register: dpkg_result
-  failed_when: false
+  failed_when: >-
+    dpkg_result.rc != 0 and
+    (dpkg_result.stderr_lines is not defined or
+        "dpkg-query: package '" + package_name + "' is not installed and no information is available"
+            not in dpkg_result.stderr_lines)
   changed_when: false
 
 - set_fact:
@@ -135,13 +139,24 @@
           src: "{{ distribution_codename }}/package.ctl.j2"
           dest: "{{ package_ctl.path }}"
 
-      - shell: equivs-build "{{ package_ctl.path }}"
+      - set_fact:
+          package_filename: "{{ package_name }}_{{ package_version }}_{{ package_architecture }}.deb"
+
+      - shell:
+          # Even though equivs-build pretends that 'the package has been created in the current directory,
+          # not in ".." as indicated by the message above!", it might create the package exactly there, e.g.
+          # when equivs-build is run as root in Ansible. As a workaround we move the package if required.
+          cmd: >-
+            equivs-build "{{ package_ctl.path }}" &&
+            if [ ! -e "{{ package_filename }}" ]; then
+              mv -vn "../{{ package_filename }}" .;
+            fi
         args:
           chdir: "{{ package_dir.path }}"
 
-      - shell: |
-          apt-get install -y \
-            "{{ package_dir.path }}/{{ package_name }}_{{ package_version }}_{{ package_architecture }}.deb"
+      - shell:
+          cmd: apt-get install -y "{{ package_dir.path }}/{{ package_filename }}"
+          warn: false
         environment:
           DEBIAN_FRONTEND: noninteractive
 
@@ -179,3 +194,4 @@
     package_breaks_list: !!null
     package_conflicts_list: !!null
     package_is_already_installed: !!null
+    package_filename: !!null
