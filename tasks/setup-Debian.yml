@@ -1,59 +1,73 @@
 ---
 # Variable is named _apt_packages instead of apt_packages (leading underscore)
 # because we do not want to override socalled variables in parent tasks
-- set_fact:
+- name: Set apt_packages variable to default value
+  set_fact:
     _apt_packages: "{{ ___apt_packages|list }}"
   when: _apt_packages|default(None) == None
 
-- set_fact:
+- name: Set package_name variable to default value
+  set_fact:
     package_name: "{{ __package_name }}"
   when: package_name|default(None) == None
 
-- set_fact:
+- name: Set package_version variable to default value
+  set_fact:
     package_version: "{{ __package_version }}"
   when: package_version|default(None) == None
 
-- set_fact:
+- name: Set package_architecture variable to default value
+  set_fact:
     package_architecture: "{{ __package_architecture }}"
   when: package_architecture|default(None) == None
 
-- set_fact:
+- name: Set package_maintainer variable to default value
+  set_fact:
     package_maintainer: "{{ __package_maintainer }}"
   when: package_maintainer|default(None) == None
 
-- set_fact:
+- name: Set package_depends variable to default value
+  set_fact:
     package_depends: "{{ __package_depends|list }}"
   when: package_depends|default(None) == None
 
-- set_fact:
+- name: Set package_pre_depends variable to default value
+  set_fact:
     package_pre_depends: "{{ __package_pre_depends|list }}"
   when: package_pre_depends|default(None) == None
 
-- set_fact:
+- name: Set package_recommends variable to default value
+  set_fact:
     package_recommends: "{{ __package_recommends|list }}"
   when: package_recommends|default(None) == None
 
-- set_fact:
+- name: Set package_suggests variable to default value
+  set_fact:
     package_suggests: "{{ __package_suggests|list }}"
   when: package_suggests|default(None) == None
 
-- set_fact:
+- name: Set package_enhances variable to default value
+  set_fact:
     package_enhances: "{{ __package_enhances|list }}"
   when: package_enhances|default(None) == None
 
-- set_fact:
+- name: Set package_breaks variable to default value
+  set_fact:
     package_breaks: "{{ __package_breaks|list }}"
   when: package_breaks|default(None) == None
 
-- set_fact:
+- name: Set package_conflicts variable to default value
+  set_fact:
     package_conflicts: "{{ __package_conflicts|list }}"
   when: package_conflicts|default(None) == None
 
-- set_fact:
+- name: Set package_description_title variable to default value
+  set_fact:
     package_description_title: "{{ __package_description_title }}"
   when: package_description_title|default(None) == None
 
-- set_fact:
+- name: Set package_description variable to default value
+  set_fact:
     package_description: "{{ __package_description }}"
   when: package_description|default(None) == None
 
@@ -62,7 +76,8 @@
   when: >
     package_name == None or package_name|length == 0
 
-- shell: dpkg --status '{{ package_name }}'
+- name: Get package information
+  shell: dpkg --status '{{ package_name }}'
   register: dpkg_result
   failed_when: >-
     dpkg_result.rc != 0 and
@@ -71,21 +86,25 @@
             not in dpkg_result.stderr_lines)
   changed_when: false
 
-- set_fact:
+- name: Check if a package with equal name and version is already installed
+  set_fact:
     package_is_already_installed:
       '{{"Status: install ok installed" in dpkg_result.stdout_lines and
          ("Version: " ~ package_version) in dpkg_result.stdout_lines}}'
     dpkg_result: !!null
 
-- when: not package_is_already_installed and
+- name: Create and install virtual package if not installed yet
+  when: not package_is_already_installed and
     (package_name|default(None) != None)
     # package_name might be None if this role has been included
     # as a dependency in meta/main.yml of another task
   block:
-  - apt:
+  - name: Update apt cache
+    apt:
       update_cache: yes
 
-  - apt:
+  - name: Install packages required by role
+    apt:
       name: "{{ _apt_packages }}"
 
   - name: Find package names matching regex patterns
@@ -115,7 +134,8 @@
     - conflicts
     changed_when: false
 
-  - set_fact:
+  - name: Postprocess package lists
+    set_fact:
       package_depends_list: "{{ package_lists.results.0.stdout_lines }}"
       package_pre_depends_list: "{{ package_lists.results.1.stdout_lines }}"
       package_recommends_list: "{{ package_lists.results.2.stdout_lines }}"
@@ -124,25 +144,31 @@
       package_breaks_list: "{{ package_lists.results.5.stdout_lines }}"
       package_conflicts_list: "{{ package_lists.results.6.stdout_lines }}"
 
-  - block:
-      - tempfile:
+  - name: Create and install virtual *.deb package
+    block:
+      - name: Create temporary directory for package creation
+        tempfile:
           state:  directory
         register: package_dir
 
-      - tempfile:
+      - name: Create temporary package control file
+        tempfile:
           state:  file
           suffix: ".ctl"
           path: "{{ package_dir.path }}"
         register: package_ctl
 
-      - template:
+      - name: Generate package control file from template
+        template:
           src: "{{ distribution_codename }}/package.ctl.j2"
           dest: "{{ package_ctl.path }}"
 
-      - set_fact:
+      - name: Construct filename of *.deb package
+        set_fact:
           package_filename: "{{ package_name }}_{{ package_version }}_{{ package_architecture }}.deb"
 
-      - shell:
+      - name: Create virtual *.deb package
+        shell:
           # Even though equivs-build pretends that 'the package has been created in the current directory,
           # not in ".." as indicated by the message above!", it might create the package exactly there, e.g.
           # when equivs-build is run as root in Ansible. As a workaround we move the package if required.
@@ -154,24 +180,28 @@
         args:
           chdir: "{{ package_dir.path }}"
 
-      - shell:
+      - name: Install virtual *.deb package
+        shell:
           cmd: apt-get install -y "{{ package_dir.path }}/{{ package_filename }}"
           warn: false
         environment:
           DEBIAN_FRONTEND: noninteractive
 
     always:
-      - file:
+      - name: Remove temporary package control file
+        file:
           path: "{{ package_ctl.get('path') if package_ctl is defined and 'path' in package_ctl else None }}"
           state: absent
         when: package_ctl is defined and 'path' in package_ctl
 
-      - file:
+      - name: Remove temporary directory used during package creation
+        file:
           path: "{{ package_dir.get('path') if package_dir is defined and 'path' in package_dir else None }}"
           state: absent
         when: package_dir is defined and 'path' in package_dir
 
-- set_fact:
+- name: Cleanup role variables
+  set_fact:
     _apt_packages: !!null
     package_name: !!null
     package_version: !!null
