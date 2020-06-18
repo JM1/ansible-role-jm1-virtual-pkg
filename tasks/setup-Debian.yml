@@ -71,32 +71,6 @@
     package_description: "{{ __package_description }}"
   when: package_description|default(None) == None
 
-- name: Cleanup role default variables
-  set_fact:
-    ___apt_packages: !!null
-    __package_name: !!null
-    __package_version: !!null
-    __package_architecture: !!null
-    __package_maintainer: !!null
-    __package_depends: !!null
-    __package_pre_depends: !!null
-    __package_recommends: !!null
-    __package_suggests: !!null
-    __package_enhances: !!null
-    __package_breaks: !!null
-    __package_conflicts: !!null
-    __package_description_title: !!null
-    __package_description: !!null
-    __package_depends_list: !!null
-    __package_pre_depends_list: !!null
-    __package_recommends_list: !!null
-    __package_suggests_list: !!null
-    __package_enhances_list: !!null
-    __package_breaks_list: !!null
-    __package_conflicts_list: !!null
-    __package_is_already_installed: !!null
-    __package_filename: !!null
-
 - name: Fail if required vars are not set
   fail:
   when: >
