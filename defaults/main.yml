@@ -1,1 +1,30 @@
 ---
+# Variable is named _apt_packages instead of apt_packages (leading underscore)
+# because we do not want to override socalled variables in parent tasks
+_apt_packages: "{{ role_default_vars['_apt_packages'] }}"
+
+package_name: "{{ role_default_vars['package_name'] }}"
+
+package_version: "{{ role_default_vars['package_version'] }}"
+
+package_architecture: "{{ role_default_vars['package_architecture'] }}"
+
+package_maintainer: "{{ role_default_vars['package_maintainer'] }}"
+
+package_depends: "{{ role_default_vars['package_depends'] }}"
+
+package_pre_depends: "{{ role_default_vars['package_pre_depends'] }}"
+
+package_recommends: "{{ role_default_vars['package_recommends'] }}"
+
+package_suggests: "{{ role_default_vars['package_suggests'] }}"
+
+package_enhances: "{{ role_default_vars['package_enhances'] }}"
+
+package_breaks: "{{ role_default_vars['package_breaks'] }}"
+
+package_conflicts: "{{ role_default_vars['package_conflicts'] }}"
+
+package_description_title: "{{ role_default_vars['package_description_title'] }}"
+
+package_description: "{{ role_default_vars['package_description'] }}"

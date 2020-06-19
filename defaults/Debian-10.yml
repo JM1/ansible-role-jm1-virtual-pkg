@@ -1,0 +1,29 @@
+---
+_apt_packages:
+- equivs
+
+package_name: !!null
+
+package_version: "1.0"
+
+package_architecture: "all"
+
+package_maintainer: "Example <example@example.com>"
+
+package_depends: []
+
+package_pre_depends: []
+
+package_recommends: []
+
+package_suggests: []
+
+package_enhances: []
+
+package_breaks: []
+
+package_conflicts: []
+
+package_description_title: "Easy and clean dependency management"
+
+package_description: "This is a meta package used for managing package dependencies."
