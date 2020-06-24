@@ -1,30 +1,32 @@
 ---
-# Variable is named _apt_packages instead of apt_packages (leading underscore)
-# because we do not want to override socalled variables in parent tasks
-_apt_packages: "{{ role_default_vars['_apt_packages'] }}"
+# Variable _packages is prefixed with underscore '_' to prevent
+# accidentally override of socalled variables in parent tasks
 
-package_name: "{{ role_default_vars['package_name'] }}"
+_packages:
+- equivs
 
-package_version: "{{ role_default_vars['package_version'] }}"
+package_name: !!null
 
-package_architecture: "{{ role_default_vars['package_architecture'] }}"
+package_version: "1.0"
 
-package_maintainer: "{{ role_default_vars['package_maintainer'] }}"
+package_architecture: "all"
 
-package_depends: "{{ role_default_vars['package_depends'] }}"
+package_maintainer: "Example <example@example.com>"
 
-package_pre_depends: "{{ role_default_vars['package_pre_depends'] }}"
+package_depends: []
 
-package_recommends: "{{ role_default_vars['package_recommends'] }}"
+package_pre_depends: []
 
-package_suggests: "{{ role_default_vars['package_suggests'] }}"
+package_recommends: []
 
-package_enhances: "{{ role_default_vars['package_enhances'] }}"
+package_suggests: []
 
-package_breaks: "{{ role_default_vars['package_breaks'] }}"
+package_enhances: []
 
-package_conflicts: "{{ role_default_vars['package_conflicts'] }}"
+package_breaks: []
 
-package_description_title: "{{ role_default_vars['package_description_title'] }}"
+package_conflicts: []
 
-package_description: "{{ role_default_vars['package_description'] }}"
+package_description_title: "Easy and clean dependency management"
+
+package_description: "This is a meta package used for managing package dependencies."

@@ -1,18 +1,4 @@
 ---
-- name: Collect distribution facts
-  setup:
-    gather_subset:
-      - min
-
-- name: Load variables specific to Debian and its derivatives, e.g. Debian 10 (Buster)
-  set_fact:
-    role_default_vars: "{{ lookup('file', '../defaults/{{ ansible_distribution }}-{{ ansible_distribution_version }}.yml')|from_yaml }}"
-  when: ansible_distribution == 'Debian'
-
 - name: Load tasks specific to OS
-  include_tasks: 'setup-{{ ansible_distribution }}.yml'
-  when: ansible_distribution == 'Debian'
-
-- name: Cleanup role variables
-  set_fact:
-    role_default_vars:
+  include_tasks: "setup-{{ ansible_facts['distribution'] }}.yml"
+  when: ansible_facts['distribution'] in [ 'Debian', 'Ubuntu' ]
