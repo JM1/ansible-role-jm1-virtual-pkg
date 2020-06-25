@@ -89,7 +89,7 @@
 
       - name: Generate package control file from template
         template:
-          src: "{{ ansible_distribution }}-{{ ansible_distribution_version }}/package.ctl.j2"
+          src: "{{ distribution_id|join('-') }}/package.ctl.j2"
           dest: "{{ package_ctl.path }}"
 
       - name: Construct filename of *.deb package
