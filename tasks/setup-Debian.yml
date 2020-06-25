@@ -33,7 +33,8 @@
 
   - name: Install packages required by role
     apt:
-      name: "{{ _packages }}"
+      name:
+      - equivs
 
   - name: Find package names matching regex patterns
     shell: |

@@ -1,10 +1,4 @@
 ---
-# Variable _packages is prefixed with underscore '_' to prevent
-# accidentally override of socalled variables in parent tasks
-
-_packages:
-- equivs
-
 package_name: !!null
 
 package_version: "1.0"
